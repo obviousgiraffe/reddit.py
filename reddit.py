@@ -452,21 +452,19 @@ class PostCard(Gtk.Box):
         left_col.pack_start(bar, False, False, 0)
 
         main_row.pack_start(left_col, False, False, 0)
+        card.pack_start(main_row, False, False, 0)
 
-        # Right column: image (if present)
+        # Image: fetch to determine size, then place accordingly
+        # Small (<=300px wide) -> right of title row
+        # Large (>300px wide)  -> full width below title row
         if post.get('img_url'):
             self.img_widget = Gtk.Image()
-            self.img_widget.set_margin_start(4)
             self.img_widget.set_valign(Gtk.Align.START)
-            self.img_widget.set_halign(Gtk.Align.END)
-
-            # Wrap in EventBox for click-to-zoom
             img_eb = Gtk.EventBox()
             img_eb.add(self.img_widget)
             img_eb.set_valign(Gtk.Align.START)
             img_eb.connect('button-press-event',
                            lambda w, e, u=post['img_url']: _show_zoom_window(u, session))
-            # Cursor hint
             img_eb.set_events(Gdk.EventMask.BUTTON_PRESS_MASK |
                               Gdk.EventMask.ENTER_NOTIFY_MASK |
                               Gdk.EventMask.LEAVE_NOTIFY_MASK)
@@ -477,19 +475,43 @@ class PostCard(Gtk.Box):
             img_eb.connect('leave-notify-event',
                            lambda w, e: w.get_window() and
                            w.get_window().set_cursor(None))
-
-            main_row.pack_end(img_eb, False, False, 0)
+            self._img_eb   = img_eb
+            self._main_row = main_row
+            self._card     = card
             threading.Thread(target=self._load_img, daemon=True).start()
 
-        card.pack_start(main_row, False, False, 0)
         self.set_hexpand(False)
         self.set_size_request(700, -1)
         self.pack_start(card, False, False, 0)
 
     def _load_img(self):
-        pb = _fetch_pixbuf(self.post['img_url'], self.session, max_w=200)
-        if pb:
-            GLib.idle_add(self.img_widget.set_from_pixbuf, pb)
+        pb = _fetch_pixbuf(self.post['img_url'], self.session, max_w=640)
+        if not pb:
+            return
+        w, h = pb.get_width(), pb.get_height()
+        if w > 300:
+            # Large image — scale to card width and place below title
+            max_w = 660
+            if w > max_w:
+                pb = pb.scale_simple(max_w, int(h * max_w / w),
+                                     GdkPixbuf.InterpType.BILINEAR)
+            def place_below(pb=pb):
+                self._img_eb.set_margin_top(6)
+                self._card.pack_start(self._img_eb, False, False, 0)
+                self.img_widget.set_from_pixbuf(pb)
+                self._card.show_all()
+            GLib.idle_add(place_below)
+        else:
+            # Small thumbnail — keep on the right
+            if w > 200:
+                pb = pb.scale_simple(200, int(h * 200 / w),
+                                     GdkPixbuf.InterpType.BILINEAR)
+            def place_right(pb=pb):
+                self._img_eb.set_margin_start(4)
+                self._main_row.pack_end(self._img_eb, False, False, 0)
+                self.img_widget.set_from_pixbuf(pb)
+                self._main_row.show_all()
+            GLib.idle_add(place_right)
 
 
 class RedditApp(Gtk.Window):
