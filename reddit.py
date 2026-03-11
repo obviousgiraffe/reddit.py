@@ -70,15 +70,15 @@ button:hover, button:active, button:focus {
     outline: none;
 }
 
-.title { font-size: 14px; font-weight: bold; color: #cdd6f4; }
+.title { font-size: 17px; font-weight: bold; color: #cdd6f4; }
 .title:hover { color: #89b4fa; }
-.meta { font-size: 13px; color: #a6adc8; }
-.comment-text { font-size: 13px; color: #cdd6f4; }
-.comment-author { font-size: 12px; font-weight: bold; color: #89b4fa; }
-.comment-score { font-size: 12px; color: #fab387; }
-.subreddit { font-size: 11px; font-weight: bold; color: #89b4fa; }
-.score { font-size: 11px; color: #fab387; }
-.comments-lbl { font-size: 11px; color: #a6adc8; }
+.meta { font-size: 14px; color: #a6adc8; }
+.comment-text { font-size: 15px; color: #cdd6f4; }
+.comment-author { font-size: 13px; font-weight: bold; color: #89b4fa; }
+.comment-score { font-size: 13px; color: #fab387; }
+.subreddit { font-size: 12px; font-weight: bold; color: #89b4fa; }
+.score { font-size: 12px; color: #fab387; }
+.comments-lbl { font-size: 12px; color: #a6adc8; }
 .flair {
     font-size: 9px; color: #a6adc8;
     background-color: #45475a;
@@ -481,7 +481,7 @@ class PostCard(Gtk.Box):
             threading.Thread(target=self._load_img, daemon=True).start()
 
         self.set_hexpand(False)
-        self.set_size_request(700, -1)
+        self.set_size_request(860, -1)
         self.pack_start(card, False, False, 0)
 
     def _load_img(self):
@@ -918,22 +918,22 @@ class RedditApp(Gtk.Window):
         scroll.connect('edge-reached', self._on_edge_reached)
         scroll.get_vadjustment().connect('value-changed', self._on_scroll_changed)
 
-        # feed_box is fixed at exactly 700px.
-        # We achieve this by putting it inside an EventBox that absorbs all
-        # extra horizontal space, with feed_box pinned to 700px via size-allocate.
+        # feed_box sits inside a centred wrapper so margins are stable
+        # and never affected by the size-request clamp.
+        self.feed_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.feed_wrapper.set_hexpand(False)
+        self.feed_wrapper.set_halign(Gtk.Align.CENTER)
+        self.feed_wrapper.set_margin_start(16)
+        self.feed_wrapper.set_margin_end(16)
+
         self.feed_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.feed_box.set_hexpand(False)
         self.feed_box.set_halign(Gtk.Align.CENTER)
-        self.feed_box.set_size_request(700, -1)
+        self.feed_box.set_size_request(860, -1)
 
-        def _clamp_feed(widget, alloc):
-            # After every layout pass, re-request exactly 700px so GTK can't
-            # give us more (fullscreen) or less (rising) than that.
-            if alloc.width != 700:
-                GLib.idle_add(widget.set_size_request, 700, -1)
 
-        self.feed_box.connect('size-allocate', _clamp_feed)
-        scroll.add(self.feed_box)
+        self.feed_wrapper.pack_start(self.feed_box, True, True, 0)
+        scroll.add(self.feed_wrapper)
         root_box.pack_start(scroll, True, True, 0)
         self.scroll = scroll
 
@@ -1169,7 +1169,7 @@ class RedditApp(Gtk.Window):
             title_lbl.set_line_wrap(True)
             title_lbl.set_line_wrap_mode(2)
             title_lbl.set_xalign(0)
-            title_lbl.set_size_request(660, -1)
+            title_lbl.set_size_request(800, -1)
             card.pack_start(title_lbl, False, False, 0)
 
             if post.get('img_url'):
@@ -1208,13 +1208,13 @@ class RedditApp(Gtk.Window):
         hdr.set_xalign(0)
         hdr.set_margin_top(8)
         hdr.set_margin_bottom(4)
-        hdr.set_margin_start(12)
+        hdr.set_margin_start(16)
         self.feed_box.pack_start(hdr, False, False, 0)
 
         for c in comments:
             row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             row.get_style_context().add_class('card')
-            row.set_margin_start(min(10 + c['depth'] * 16, 120))
+            row.set_margin_start(min(c['depth'] * 16, 120))
             row.set_margin_top(2)
             row.set_margin_bottom(2)
 
@@ -1234,7 +1234,7 @@ class RedditApp(Gtk.Window):
             txt.set_line_wrap_mode(2)
             txt.set_xalign(0)
             txt.set_hexpand(False)
-            txt.set_size_request(600, -1)
+            txt.set_size_request(760, -1)
             row.pack_start(txt, False, False, 0)
 
             row.set_hexpand(False)
